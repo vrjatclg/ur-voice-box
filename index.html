@@ -4,14 +4,15 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Voice Translator</title>
-    <link rel="stylesheet" href="style.css">
+     <link rel="stylesheet" href="styles.css">
 </head>
 <body>
     <div id="history-sidebar" class="sidebar">
         <a href="javascript:void(0)" class="closebtn" onclick="toggleSidebar()">&times;</a>
         <h3>Conversation History</h3>
         <ul id="history-list">
-            </ul>
+            <!-- Populated by JS -->
+        </ul>
     </div>
 
     <div id="main-content">
@@ -41,11 +42,13 @@
         </div>
     </div>
 
+    <!-- Chatbox Modal -->
     <div id="chatModal" class="modal">
         <div class="modal-content">
             <span class="modal-close">&times;</span>
             <div id="chatDisplay" class="chat-display">
-                </div>
+                <!-- Chat messages will be populated here -->
+            </div>
             <div class="chat-input-area">
                 <input type="text" id="chatInput" class="chat-input" placeholder="Type a message...">
                 <button id="chatSendBtn" class="chat-send-btn">Send</button>
