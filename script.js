@@ -1,53 +1,65 @@
-// --- Global Variables ---
+// DOM Elements
+const circleEl = document.getElementById('circle');
+const liveEl = document.getElementById('live');
+const translatedEl = document.getElementById('translated');
+const micBtn = document.getElementById('micBtn');
+const stopBtn = document.getElementById('stopBtn');
+const langSelect = document.getElementById('langSelect');
+const historyList = document.getElementById('history-list');
+const modal = document.getElementById('chatModal');
+const modalClose = document.querySelector('.modal-close');
+const chatDisplay = document.getElementById('chatDisplay');
+const chatInput = document.getElementById('chatInput');
+const chatSendBtn = document.getElementById('chatSendBtn');
+
 let recognition;
 let recognizing = false;
 let silenceTimer;
 let finalTranscript = "";
-let targetLang = "en-US"; // Default language
-
-// --- DOM Element References ---
-const circleEl = document.getElementById("circle");
-const liveEl = document.getElementById("live");
-const translatedEl = document.getElementById("translated");
-const micBtn = document.getElementById("micBtn");
-const stopBtn = document.getElementById("stopBtn");
-const langSelect = document.getElementById("langSelect");
+let targetLang = "en-US";
 
 // --- Event Listeners ---
 langSelect.addEventListener("change", () => {
     targetLang = langSelect.value;
 });
-
-micBtn.onclick = () => {
-    if (!recognizing) {
-        startRecognition();
+micBtn.addEventListener('click', startRecognition);
+stopBtn.addEventListener('click', stopRecognition);
+modalClose.onclick = () => modal.style.display = "none";
+window.onclick = (event) => {
+    if (event.target == modal) {
+        modal.style.display = "none";
     }
 };
+chatSendBtn.onclick = () => {
+    const userMessage = chatInput.value.trim();
+    if (userMessage) {
+        addMessageToChat('user', userMessage);
+        chatInput.value = '';
+        handleChatMessage(userMessage);
+    }
+};
+chatInput.addEventListener('keypress', function (e) {
+    if (e.key === 'Enter') {
+        chatSendBtn.click();
+    }
+});
 
-stopBtn.onclick = stopRecognition;
-
-
-// --- Core Functions ---
-
-/**
- * Creates and configures a new SpeechRecognition instance.
- */
+// --- Speech Recognition Logic ---
 function createRecognition() {
     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
     if (!SpeechRecognition) {
-        return null; // Browser doesn't support the API
+        liveEl.textContent = "Browser not supported.";
+        return null;
     }
-
     const r = new SpeechRecognition();
-    r.lang = "en-US"; // The language spoken by the user
-    r.continuous = true; // Keep listening even after a pause
-    r.interimResults = true; // Get results as the user speaks
+    r.lang = "en-US";
+    r.continuous = true;
+    r.interimResults = true;
 
-    // --- Recognition Event Handlers ---
     r.onstart = () => {
         recognizing = true;
         finalTranscript = "";
-        circleEl.classList.add("shrink"); // Visual feedback
+        circleEl.classList.add("shrink", "recording");
         liveEl.textContent = "Listening...";
         translatedEl.textContent = "";
         resetSilenceTimer();
@@ -55,6 +67,7 @@ function createRecognition() {
 
     r.onresult = (event) => {
         let interimTranscript = "";
+        finalTranscript = "";
         for (let i = event.resultIndex; i < event.results.length; ++i) {
             if (event.results[i].isFinal) {
                 finalTranscript += event.results[i][0].transcript;
@@ -63,15 +76,15 @@ function createRecognition() {
             }
         }
         liveEl.textContent = finalTranscript + interimTranscript;
-        resetSilenceTimer(); // Reset timer on new speech
+        resetSilenceTimer();
     };
 
     r.onend = () => {
         recognizing = false;
-        circleEl.classList.remove("shrink"); // Reset visual feedback
+        circleEl.classList.remove("shrink", "recording");
         clearTimeout(silenceTimer);
         if (finalTranscript.trim()) {
-            handleFinalTranscript(finalTranscript);
+            handleFinal(finalTranscript);
         } else {
             liveEl.textContent = "Tap mic and speak…";
         }
@@ -85,90 +98,106 @@ function createRecognition() {
     return r;
 }
 
-/**
- * Starts the speech recognition process.
- */
 function startRecognition() {
-    if (!recognition) {
-        recognition = createRecognition();
+    if (recognizing) return;
+    recognition = createRecognition();
+    if (recognition) {
+        recognition.start();
     }
-    if (!recognition) {
-        liveEl.textContent = "Browser not supported.";
-        return;
-    }
-    recognition.start();
 }
 
-/**
- * Manually stops the speech recognition process.
- */
 function stopRecognition() {
     if (recognition && recognizing) {
         recognition.stop();
     }
-    recognizing = false;
-    circleEl.classList.remove("shrink");
-    liveEl.textContent = "Stopped by user.";
 }
 
-/**
- * Resets the timer that auto-stops recognition after a period of silence.
- */
 function resetSilenceTimer() {
     clearTimeout(silenceTimer);
     silenceTimer = setTimeout(() => {
         if (recognizing) {
-            console.log("Silence detected, stopping recognition.");
-            recognition.stop();
+            stopRecognition();
         }
-    }, 5000); // Stop after 5 seconds of silence
+    }, 5000);
 }
 
-/**
- * Processes the final transcript after recognition ends.
- * @param {string} text The final recognized text.
- */
-async function handleFinalTranscript(text) {
-    liveEl.textContent = `Recognized: "${text}"`;
-    translatedEl.textContent = "Translating...";
-    
-    // Call translation and speech synthesis
-    const translatedText = await translateText(text, targetLang);
-    translatedEl.textContent = `Translated: "${translatedText}"`;
-    playTranslatedVoice(translatedText, targetLang);
+async function handleFinal(text) {
+    liveEl.textContent = text;
+    try {
+        const translated = await translateText(text, targetLang);
+        translatedEl.textContent = translated;
+        playTranslatedVoice(translated, targetLang);
+        addToHistory(text, translated);
+    } catch (error) {
+        console.error("Translation/synthesis error:", error);
+        translatedEl.textContent = "Error during translation.";
+    }
 }
 
-
-// --- Placeholder API Functions ---
-
-/**
- * (Placeholder) Simulates calling a translation API.
- * @param {string} txt The text to translate.
- * @param {string} lang The target language code (e.g., "es-ES").
- * @returns {Promise<string>} The translated text.
- */
+// --- API & Synthesis Placeholders ---
 async function translateText(txt, lang) {
-    console.log(`Placeholder: Translating "${txt}" to ${lang}`);
-    // Simulate network delay
-    await new Promise(resolve => setTimeout(resolve, 200)); 
-    // This is where you would make a real API call.
-    return txt + " [translated to " + lang + "]";
+    console.log(`Translating "${txt}" to ${lang}`);
+    await new Promise(resolve => setTimeout(resolve, 500));
+    return `${txt} [translated to ${lang}]`;
 }
 
-/**
- * Plays the given text using the browser's speech synthesis.
- * @param {string} txt The text to speak.
- * @param {string} lang The language code for the voice.
- */
 function playTranslatedVoice(txt, lang) {
     if (!window.speechSynthesis) {
-        console.warn("Browser does not support speech synthesis.");
+        console.error("Speech Synthesis not supported.");
         return;
     }
-    const utterance = new SpeechSynthesisUtterance(txt);
-    utterance.lang = lang; // Set the voice language
-    
-    // Stop any currently speaking utterance before starting a new one
-    speechSynthesis.cancel(); 
-    speechSynthesis.speak(utterance);
+    const utter = new SpeechSynthesisUtterance(txt);
+    utter.lang = lang;
+    speechSynthesis.cancel();
+    speechSynthesis.speak(utter);
+}
+
+// --- Sidebar, History & Chatbox Logic ---
+function addToHistory(originalText, translatedText) {
+    const listItem = document.createElement('li');
+    listItem.dataset.original = originalText;
+    listItem.dataset.translated = translatedText;
+    listItem.textContent = originalText.length > 25 ? originalText.substring(0, 22) + '...' : originalText;
+
+    listItem.addEventListener('click', () => {
+        openChatbox(listItem.dataset.original, listItem.dataset.translated);
+    });
+
+    historyList.prepend(listItem);
+}
+
+function toggleSidebar() {
+    const sidebar = document.getElementById('history-sidebar');
+    const main = document.getElementById('main-content');
+    if (sidebar.style.width === '280px') {
+        sidebar.style.width = '0';
+        main.style.marginLeft = '0';
+    } else {
+        sidebar.style.width = '280px';
+        main.style.marginLeft = '280px';
+    }
+}
+
+function openChatbox(originalText, translatedText) {
+    chatDisplay.innerHTML = '';
+    addMessageToChat('user', originalText);
+    addMessageToChat('bot', translatedText);
+    modal.style.display = 'block';
+    chatInput.focus();
+}
+
+function addMessageToChat(sender, message) {
+    const msgDiv = document.createElement('div');
+    msgDiv.className = sender === 'user' ? 'user-msg' : 'bot-msg';
+    msgDiv.textContent = message;
+    chatDisplay.appendChild(msgDiv);
+    chatDisplay.scrollTop = chatDisplay.scrollHeight;
+}
+
+async function handleChatMessage(message) {
+    console.log(`Sending to API: "${message}"`);
+    // Simulate API delay
+    await new Promise(resolve => setTimeout(resolve, 500));
+    const botResponse = `This is a simulated response to "${message}"`;
+    addMessageToChat('bot', botResponse);
 }
