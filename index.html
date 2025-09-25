@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>Voice Box</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="app">
+        <select id="langSelect" class="lang-select">
+            <option value="en-US">English</option>
+            <option value="hi-IN">Hindi</option>
+            <option value="es-ES">Spanish</option>
+            <option value="fr-FR">French</option>
+            <option value="de-DE">German</option>
+        </select>
+
+        <div id="circle" class="circle"></div>
+        <div id="live" class="captions">Tap mic and speak…</div>
+        <div id="translated" class="translated"></div>
+    </div>
+
+    <div class="controls">
+        <button id="micBtn" class="btn mic">🎤</button>
+        <button id="stopBtn" class="btn stop">❌</button>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>
